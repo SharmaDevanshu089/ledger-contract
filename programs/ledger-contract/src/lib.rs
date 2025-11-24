@@ -1,52 +1,35 @@
-import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
-// Import the generated program types (assuming default Anchor project structure)
-import { Expense } from "../target/types/expense"; 
-import * as assert from "assert";
+use anchor_lang::prelude::*;
 
-// Define the test suite for the 'expense' program
-describe("expense", () => {
-  // COMPATIBILITY FIX: 
-  // Use anchor.Provider.env() for older Anchor versions (<0.26.0)
-  const provider = anchor.Provider.env();
-  anchor.setProvider(provider);
+// This is your program's public key and it will update
+// automatically when you build the project.
+declare_id!("JCkLkDfCXtiqwPUrSxDRBN5UC2id9aQHwiMsMCuzru5S");
 
-  // Load the program from the workspace, linking it to the IDL and Program ID
-  const program = anchor.workspace.Expense as Program<Expense>;
+#[program]
+pub mod expense {
+    use super::*;
+    pub fn push_Expense(ctx: Context<Push_Expense>, name: String,cost:i32) -> Result<()> {
+        ctx.accounts.Expense_Data.expense_name = name.clone();
+        ctx.accounts.Expense_Data.cost = cost.clone();
+        msg!("Pushed {} at {} into Blockchain",name , cost);
+        Ok(())
+    }
+}
 
-  // Generate a keypair for the new expense account. 
-  const expenseAccount = anchor.web3.Keypair.generate();
+#[derive(Accounts)]
+pub struct Push_Expense<'info> {
+    // We must specify the space in order to initialize an account.
+    // First 8 bytes are default account discriminator,
+    // next 8 bytes come from NewAccount.data being type u64.
+    // (u64 = 64 bits unsigned integer = 8 bytes)
+    #[account(init, payer = signer, space = 8 + 256)]
+    pub Expense_Data: Account<'info, Expense_Data>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
 
-  it("Pushes an expense successfully and verifies the data!", async () => {
-    // --- Test Input Data ---
-    const expenseName = "Office Supplies";
-    const costValue = 450; // Corresponds to i32 in Rust
-
-    // 1. Send the Transaction
-    // COMPATIBILITY FIX: Use program.rpc for older Anchor versions
-    // The signature is: method(arg1, arg2, ..., { accounts: {}, signers: [] })
-    await program.rpc.pushExpense(expenseName, costValue, {
-        accounts: {
-            expenseData: expenseAccount.publicKey,
-            signer: provider.wallet.publicKey,
-            systemProgram: anchor.web3.SystemProgram.programId,
-        },
-        signers: [expenseAccount]
-    });
-
-    // 2. Fetch the Account Data
-    const account = await program.account.expenseData.fetch(
-      expenseAccount.publicKey
-    );
-
-    // 3. Assertions (Verification)
-    assert.equal(account.expenseName, expenseName, "The expense name stored does not match the input.");
-    assert.equal(account.cost, costValue, "The cost value stored does not match the input.");
-
-    // Console output for confirmation
-    console.log("--- Expense Creation Successful ---");
-    console.log(`Account Address: ${expenseAccount.publicKey.toBase58()}`);
-    console.log(`Stored Name: ${account.expenseName}`);
-    console.log(`Stored Cost: ${account.cost}`);
-  });
-});
+#[account]
+pub struct Expense_Data {
+    expense_name:String,
+    cost : i32,
+}
