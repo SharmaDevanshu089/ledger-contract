@@ -1,35 +1,40 @@
 use anchor_lang::prelude::*;
 
-// This is your program's public key and it will update
-// automatically when you build the project.
+// This is your program's public key
 declare_id!("JCkLkDfCXtiqwPUrSxDRBN5UC2id9aQHwiMsMCuzru5S");
 
 #[program]
 pub mod expense {
     use super::*;
-    pub fn push_Expense(ctx: Context<Push_Expense>, name: String,cost:i32) -> Result<()> {
-        ctx.accounts.Expense_Data.expense_name = name.clone();
-        ctx.accounts.Expense_Data.cost = cost.clone();
-        msg!("Pushed {} at {} into Blockchain",name , cost);
+    
+    // Rust functions should be snake_case
+    pub fn push_expense(ctx: Context<PushExpense>, name: String, cost: i32) -> Result<()> {
+        let expense_data = &mut ctx.accounts.expense_data;
+        expense_data.expense_name = name;
+        expense_data.cost = cost;
+        
+        msg!("Pushed {} at {} into Blockchain", expense_data.expense_name, expense_data.cost);
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-pub struct Push_Expense<'info> {
-    // We must specify the space in order to initialize an account.
-    // First 8 bytes are default account discriminator,
-    // next 8 bytes come from NewAccount.data being type u64.
-    // (u64 = 64 bits unsigned integer = 8 bytes)
+// Structs should be UpperCamelCase
+pub struct PushExpense<'info> {
+    // We must specify the space. 
+    // 8 bytes (discriminator) + 4 bytes (string prefix) + 50 bytes (string buffer) + 4 bytes (i32)
+    // using 256 is also fine for safety.
     #[account(init, payer = signer, space = 8 + 256)]
-    pub Expense_Data: Account<'info, Expense_Data>,
+    pub expense_data: Account<'info, ExpenseData>,
+    
     #[account(mut)]
     pub signer: Signer<'info>,
+    
     pub system_program: Program<'info, System>,
 }
 
 #[account]
-pub struct Expense_Data {
-    expense_name:String,
-    cost : i32,
+pub struct ExpenseData {
+    pub expense_name: String,
+    pub cost: i32,
 }
